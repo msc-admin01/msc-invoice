@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#263b35">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>請求書作成アプリ</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;color:#202622;background:#f3f5f4}
+*{box-sizing:border-box}body{margin:0;padding:16px 12px 32px}.app{max-width:720px;margin:auto}
+header{padding:8px 4px 16px}h1{font-size:22px;margin:0 0 5px}header p,.hint{font-size:12px;color:#66716b;margin:0}
+section{background:#fff;border:1px solid #dce2de;border-radius:14px;padding:14px;margin-bottom:12px}
+h2{font-size:16px;margin:0 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.full{grid-column:1/-1}label{display:block;font-size:12px;color:#64716a;margin:0 0 5px}
+input,select,textarea{font:inherit;font-size:14px;width:100%;min-width:0;border:1px solid #cbd4ce;border-radius:8px;padding:10px;background:#fff;color:#202622}
+.item{border:1px solid #e0e5e2;border-radius:10px;padding:10px;margin-top:9px}
+.itemrow{display:grid;grid-template-columns:1fr 1fr 48px;gap:8px}
+button{border:0;border-radius:9px;padding:12px;font-weight:650;font-size:14px;cursor:pointer}
+.add,.reset{background:#fff;border:1px solid #cbd4ce;color:#263b35;width:100%;margin-top:10px}
+.remove{background:#fff0f0;color:#b42318;width:100%;padding:9px}
+.primary{background:#263b35;color:white;width:100%}
+.moneyrow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #e8ece9;font-size:14px}
+.moneyrow:last-child{border-bottom:0}.amount{font-size:22px;font-weight:800;color:#263b35}
+.result{background:#eef4f0;border-radius:10px;padding:12px}
+.note{font-size:12px;color:#66716b;line-height:1.6}
+@media(max-width:420px){body{padding:10px 8px 24px}.grid{gap:8px}section{padding:12px}.itemrow{gap:6px}}
+@media print{body{background:white;padding:0}.app{max-width:none}header p,.hint,.add,.remove,.reset,.primary{display:none!important}section{break-inside:avoid;border:1px solid #bbb;box-shadow:none;margin-bottom:8px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><h1>請求書作成アプリ</h1><p>施術メニュー・数量入力／手数料・雑費・振込金額を自動計算</p></header>
+<section>
+<h2>① 請求書情報</h2>
+<div class="grid">
+<div><label>発行日</label><input id="date" type="date"></div>
+<div><label>請求書番号</label><input id="number" placeholder="001"></div>
+<div class="full"><label>請求先</label><input id="client" placeholder="お客様・店舗名"></div>
+<div><label>対象年月</label><input id="month" type="month"></div>
+<div><label>担当者</label><input id="staff" placeholder="担当者名"></div>
+<div class="full"><label>件名</label><input id="subject" value="施術業務 ご利用料金"></div>
+<div class="full"><label>住所</label><input id="address" placeholder="住所"></div>
+<div><label>電話番号</label><input id="phone" placeholder="電話番号"></div>
+<div><label>登録番号（任意）</label><input id="registration" placeholder="T..."></div>
+</div>
+</section>
+<section>
+<h2>② 施術メニュー・数量</h2><p class="hint">メニューを選ぶと単価が入ります。単価は必要に応じて変更できます。</p>
+<div id="items"></div><button class="add" id="add">＋ メニューを追加</button>
+</section>
+<section>
+<h2>③ 請求金額</h2>
+<div class="grid"><div class="full"><label>消費税の扱い</label><select id="taxMode"><option value="included">税込価格（内税10％）</option><option value="excluded">税抜価格（外税10％）</option><option value="none">消費税なし</option></select></div></div>
+<div class="moneyrow"><span>施術料金小計</span><strong id="subtotal">¥0</strong></div>
+<div class="moneyrow"><span>消費税</span><strong id="tax">¥0</strong></div>
+<div class="moneyrow"><span>税込合計</span><strong id="gross">¥0</strong></div>
+<div style="margin-top:10px"><label>金額調整（円・加算は正数、値引きは負数）</label><input id="adjust" type="number" value="0"></div>
+<div class="moneyrow"><strong>請求金額</strong><strong id="bill">¥0</strong></div>
+</section>
+<section>
+<h2>④ 差引・最終振込金額</h2>
+<div class="moneyrow"><span>請求金額</span><strong id="base">¥0</strong></div>
+<div class="moneyrow"><span>契約手数料（50％）</span><strong id="fee">−¥0</strong></div>
+<div class="moneyrow"><span>日本治療協会保険代</span><strong>−¥1,800</strong></div>
+<div class="moneyrow"><span>雑費（2％）</span><strong id="expense">−¥0</strong></div>
+<div class="result"><div class="moneyrow"><strong>最終振込金額</strong><strong class="amount" id="final">¥0</strong></div></div>
+<p class="note">雑費は、請求金額から契約手数料と保険代1,800円を差し引いた残額の2％（小数点以下切捨て）で計算します。</p>
+</section>
+<section>
+<h2>⑤ 備考・振込先</h2>
+<div class="grid">
+<div class="full"><label>備考</label><textarea id="notes" rows="3" placeholder="お支払いに関する連絡事項など"></textarea></div>
+<div class="full"><label>銀行名・支店名</label><input id="bank" placeholder="〇〇銀行 〇〇支店"></div>
+<div class="full"><label>口座種別・口座番号</label><input id="account" placeholder="普通 0000000"></div>
+<div class="full"><label>口座名義</label><input id="holder" placeholder="口座名義"></div>
+</div>
+</section>
+<section>
+<h2>⑥ 印刷・保存</h2>
+<button class="primary" id="print">印刷／PDFとして保存</button>
+<button class="reset" id="reset">入力内容をリセット</button>
+<p class="note">印刷画面で「PDFとして保存」を選ぶと、請求書をPDFにできます。HTMLファイルをスマホに保存すれば、ブラウザで開いてローカル利用できます。</p>
+</section>
+</div>
+<script>
+(() => {
+const $=id=>document.getElementById(id),money=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+const menus=[
+['アロマ90分',90,10000],['アロマ60分',60,8000],['アロマ30分',30,5000],
+['ボディ90分',90,12000],['ボディ60分',60,8700],['ボディ30分',30,6200],
+['ヘッドケア',20,3300],['フットケア',30,6500],['ハンドケア',20,3300],
+['延長10分',10,1600],['延長20分',20,3200],['延長30分',30,4800],['その他（単価入力）',0,0]
+];
+let rows=[];
+function addRow(){rows.push({menu:0,qty:1,price:menus[0][2]});renderRows()}
+function renderRows(){
+ const host=$('items');host.innerHTML='';
+ rows.forEach((r,i)=>{
+  const card=document.createElement('div');card.className='item';
+  const sel=document.createElement('select');sel.setAttribute('aria-label','施術メニュー');
+  menus.forEach((m,j)=>{const o=document.createElement('option');o.value=j;o.textContent=m[0];sel.append(o)});sel.value=r.menu;
+  const row=document.createElement('div');row.className='itemrow';row.style.marginTop='9px';
+  const qwrap=document.createElement('div'),pwrap=document.createElement('div'),dwrap=document.createElement('div');
+  qwrap.innerHTML='<label>数量</label>';pwrap.innerHTML='<label>単価（円）</label>';dwrap.innerHTML='<label>削除</label>';
+  const qty=document.createElement('input');qty.type='number';qty.min='0';qty.step='1';qty.value=r.qty;
+  const price=document.createElement('input');price.type='number';price.min='0';price.step='1';price.value=r.price;
+  const del=document.createElement('button');del.className='remove';del.textContent='×';
+  qwrap.append(qty);pwrap.append(price);dwrap.append(del);row.append(qwrap,pwrap,dwrap);card.append(sel,row);host.append(card);
+  sel.onchange=()=>{r.menu=+sel.value;r.price=menus[r.menu][2];renderRows()};
+  qty.oninput=()=>{r.qty=Math.max(0,+qty.value||0);calculate()};
+  price.oninput=()=>{r.price=Math.max(0,+price.value||0);calculate()};
+  del.onclick=()=>{rows.splice(i,1);renderRows()};
+ });
+ calculate();
+}
+function calculate(){
+ const sub=rows.reduce((s,r)=>s+r.qty*r.price,0),mode=$('taxMode').value;
+ let tax=0,gross=sub;
+ if(mode==='included')tax=Math.round(sub*10/110);
+ else if(mode==='excluded'){tax=Math.round(sub*.1);gross=sub+tax}
+ const adjust=Number($('adjust').value)||0,bill=gross+adjust;
+ const fee=Math.floor(bill*.5),remaining=bill-fee-1800,expense=Math.floor(remaining*.02),final=remaining-expense;
+ [['subtotal',sub],['tax',tax],['gross',gross],['bill',bill],['base',bill]].forEach(([id,n])=>$(id).textContent=money(n));
+ $('fee').textContent='−'+money(fee);$('expense').textContent='−'+money(expense);$('final').textContent=money(final);
+}
+$('add').onclick=addRow;$('taxMode').onchange=calculate;$('adjust').oninput=calculate;
+$('print').onclick=()=>window.print();
+$('reset').onclick=()=>{if(!confirm('入力内容をすべてリセットしますか？'))return;rows=[];['number','client','staff','address','phone','registration','notes','bank','account','holder'].forEach(id=>$(id).value='');$('adjust').value='0';$('taxMode').value='included';initDates();addRow()};
+function initDates(){const d=new Date(),ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');$('date').value=ym+'-'+String(d.getDate()).padStart(2,'0');$('month').value=ym}
+initDates();addRow();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+}
+</script>
+</body>
+</html>

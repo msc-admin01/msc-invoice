@@ -1,0 +1,23 @@
+{
+  "name": "請求書作成アプリ",
+  "short_name": "請求書作成",
+  "description": "施術料金・請求金額・手数料・最終振込金額を計算するアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f4",
+  "theme_color": "#263b35",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
